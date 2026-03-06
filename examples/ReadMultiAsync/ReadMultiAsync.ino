@@ -21,7 +21,10 @@ void setup() {
   while (!Serial)
     continue;
 
+  pzem1.setSharedSerial(true);
   pzem1.begin(Serial1, 14, 27, 0x01, true);
+
+  pzem1.setSharedSerial(true);
   pzem2.begin(Serial1, 14, 27, 0x02, true);
 }
 
