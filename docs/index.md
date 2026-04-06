@@ -383,6 +383,8 @@ CT wiring pitfalls
 - [PZEM-004T-V3.0-Datasheet-User-Manual.pdf](https://mathieu.carbou.me/MycilaPZEM/PZEM-004T-V3.0-Datasheet-User-Manual.pdf)
 - [PZEM-004T V3](https://innovatorsguru.com/pzem-004t-v3/)
 - [mandulaj/PZEM-004T-v30](https://github.com/mandulaj/PZEM-004T-v30)
+- [Peacefair PZEM-004T v3.0 Open CT + USB 100A](https://aliexpress.com/item/33045826345.html) - [manufacturer page](https://en.peacefair.cn/product/769.html)
+- [Peacefair PZEM-004T v4.0 Open CT + USB 100A](https://aliexpress.com/item/1005009611591855.html)  - [manufacturer page](https://en.peacefair.cn/product/772.html) **recommended**
 
 ## Examples
 
