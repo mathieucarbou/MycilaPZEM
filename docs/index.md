@@ -8,7 +8,6 @@
 
 [![Build](https://github.com/mathieucarbou/MycilaPZEM/actions/workflows/ci.yml/badge.svg)](https://github.com/mathieucarbou/MycilaPZEM/actions/workflows/ci.yml)
 [![GitHub latest commit](https://badgen.net/github/last-commit/mathieucarbou/MycilaPZEM)](https://GitHub.com/mathieucarbou/MycilaPZEM/commit/)
-[![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-Ready--to--Code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/mathieucarbou/MycilaPZEM)
 
 Arduino / ESP32 library for the PZEM-004T power and energy monitor (v3 and v4).
 
