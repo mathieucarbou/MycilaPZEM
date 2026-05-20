@@ -213,16 +213,25 @@ bool Mycila::PZEM::read(uint8_t address) {
   _data.frequency = (static_cast<uint32_t>(_buffer[17]) << 8 | static_cast<uint32_t>(_buffer[18])) * 0.1f;                                                                                        // Raw Frequency in 0.1Hz
   _data.powerFactor = (static_cast<uint32_t>(_buffer[19]) << 8 | static_cast<uint32_t>(_buffer[20])) * 0.01f;                                                                                     // Raw pf in 0.01
 
-  // reject readings where the energy counter jumps by an impossible amount:
-  // the PZEM-004T is rated for max ~23 kW, so no legitimate polling gap can produce
-  // a delta of 1 000 000 000 Wh (1 TWh). Such jumps indicate a CRC-passing corrupt frame.
-  if (prevEnergy > 0 && _data.activeEnergy > prevEnergy && (_data.activeEnergy - prevEnergy) > 1000000000UL) {
-    LOGD(TAG, "read() rejected: impossible energy jump %" PRIu32 " -> %" PRIu32, prevEnergy, _data.activeEnergy);
-    _data.clear();
-    if (_callback) {
-      _callback(EventType::EVT_READ_ERROR, _data);
+  // Reject readings where the energy counter jumps by a physically impossible amount.
+  // The PZEM-004T is rated for ~23 kW max; the maximum legitimate delta between two reads
+  // equals 23 000 W × elapsed_time, with a 10× safety margin.
+  // uint32 subtraction is safe across millis() rollover (~49 days).
+  if (prevEnergy > 0 && _data.activeEnergy > prevEnergy) {
+    const uint32_t delta = _data.activeEnergy - prevEnergy;
+    // maxDelta = 23 000 W × (elapsed_ms / 3 600 000 ms/h) × 10 (safety margin)
+    //          = elapsed_ms × 23 000 / 360 000   (denominator already divided by 10)
+    // Use uint64 arithmetic to avoid overflow; cap at 1 000 000 000 when _time is unknown.
+    const uint32_t elapsed_ms = millis() - _time;
+    const uint32_t maxDelta = _time == 0 ? 1000000000UL : static_cast<uint32_t>(elapsed_ms * 23ULL / 360ULL);
+    if (delta > maxDelta) {
+      LOGD(TAG, "read() rejected: energy %" PRIu32 " -> %" PRIu32 " (delta=%" PRIu32 " max=%" PRIu32 ")", prevEnergy, _data.activeEnergy, delta, maxDelta);
+      _data.clear();
+      if (_callback) {
+        _callback(EventType::EVT_READ_ERROR, _data);
+      }
+      return false;
     }
-    return false;
   }
 
   // calculate remaining metrics
