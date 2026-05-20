@@ -171,6 +171,7 @@ bool Mycila::PZEM::read(uint8_t address) {
 
   std::lock_guard<std::mutex> lock(_mutex);
 
+  _drop(); // clear any stale bytes before sending the request
   _send(address, PZEM_CMD_RIR, PZEM_REGISTER_VOLTAGE, PZEM_REGISTER_COUNT);
   ReadResult result = _timedRead(address, PZEM_RESPONSE_SIZE_READ_METRICS);
 
@@ -202,12 +203,27 @@ bool Mycila::PZEM::read(uint8_t address) {
 
   assert(result == ReadResult::READ_SUCCESS);
 
+  // save previous energy to detect impossible jumps caused by CRC-passing corrupt frames
+  const uint32_t prevEnergy = _data.activeEnergy;
+
   _data.voltage = (static_cast<uint32_t>(_buffer[3]) << 8 | static_cast<uint32_t>(_buffer[4])) * 0.1f;                                                                                            // Raw voltage in 0.1V
   _data.current = (static_cast<uint32_t>(_buffer[5]) << 8 | static_cast<uint32_t>(_buffer[6] | static_cast<uint32_t>(_buffer[7]) << 24 | static_cast<uint32_t>(_buffer[8]) << 16)) * 0.001f;      // Raw current in 0.001A
   _data.activePower = (static_cast<uint32_t>(_buffer[9]) << 8 | static_cast<uint32_t>(_buffer[10] | static_cast<uint32_t>(_buffer[11]) << 24 | static_cast<uint32_t>(_buffer[12]) << 16)) * 0.1f; // Raw power in 0.1W
   _data.activeEnergy = (static_cast<uint32_t>(_buffer[13]) << 8 | static_cast<uint32_t>(_buffer[14] | static_cast<uint32_t>(_buffer[15]) << 24 | static_cast<uint32_t>(_buffer[16]) << 16));      // Raw Energy in 1Wh
   _data.frequency = (static_cast<uint32_t>(_buffer[17]) << 8 | static_cast<uint32_t>(_buffer[18])) * 0.1f;                                                                                        // Raw Frequency in 0.1Hz
   _data.powerFactor = (static_cast<uint32_t>(_buffer[19]) << 8 | static_cast<uint32_t>(_buffer[20])) * 0.01f;                                                                                     // Raw pf in 0.01
+
+  // reject readings where the energy counter jumps by an impossible amount:
+  // the PZEM-004T is rated for max ~23 kW, so no legitimate polling gap can produce
+  // a delta of 1 000 000 000 Wh (1 TWh). Such jumps indicate a CRC-passing corrupt frame.
+  if (prevEnergy > 0 && _data.activeEnergy > prevEnergy && (_data.activeEnergy - prevEnergy) > 1000000000UL) {
+    LOGD(TAG, "read() rejected: impossible energy jump %" PRIu32 " -> %" PRIu32, prevEnergy, _data.activeEnergy);
+    _data.clear();
+    if (_callback) {
+      _callback(EventType::EVT_READ_ERROR, _data);
+    }
+    return false;
+  }
 
   // calculate remaining metrics
 
